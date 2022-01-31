@@ -27,7 +27,7 @@ pub enum Operation {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum FormulaShape {
     A, // ((a _ b) _ c) _ d
-    B, // ((a _b) _ (c _ d))
+    B, // (a _ b) _ (c _ d)
 }
 
 #[wasm_bindgen]
@@ -38,6 +38,8 @@ extern "C" {
 
 #[wasm_bindgen]
 pub fn enumerate(a: i32, b: i32, c: i32, d: i32) -> Vec<js_sys::Array> {
+    // utils::set_panic_hook();
+
     let operations = vec![
         Operation::Add,
         Operation::Sub,
@@ -53,21 +55,24 @@ pub fn enumerate(a: i32, b: i32, c: i32, d: i32) -> Vec<js_sys::Array> {
         .unique()
         .flat_map(|args| {
             operations
-                .iter()
+                .clone()
+                .into_iter()
                 .cycle()
                 .take(3 * operations.len())
                 .combinations_with_replacement(3)
                 .unique()
-                .flat_map(|ops| {
+                .flat_map(move |ops| {
                     [FormulaShape::A, FormulaShape::B]
+                        .clone()
                         .iter()
                         .filter_map(|shape| {
                             if calculate(&args, &ops, &shape) == Ok(10.0) {
-                                Some(get_array(&args, &ops, &shape))
+                                Some(get_array(&args, &ops, shape))
                             } else {
                                 None
                             }
                         })
+                        .collect::<Vec<_>>()
                 })
         })
         .collect()
@@ -86,16 +91,16 @@ pub fn calculate_term(
             Operation::Mul => Some(a * b),
             Operation::Div => {
                 if b == Rational32::from_integer(0) {
-                    Some(a / b)
-                } else {
                     None
+                } else {
+                    Some(a / b)
                 }
             }
             Operation::DivInversed => {
                 if a == Rational32::from_integer(0) {
-                    Some(b / a)
-                } else {
                     None
+                } else {
+                    Some(b / a)
                 }
             }
         }
@@ -104,7 +109,7 @@ pub fn calculate_term(
     }
 }
 
-pub fn calculate(args: &Vec<&i32>, ops: &Vec<&Operation>, shape: &FormulaShape) -> Result<f32, ()> {
+pub fn calculate(args: &Vec<&i32>, ops: &Vec<Operation>, shape: &FormulaShape) -> Result<f32, ()> {
     let args: Vec<Option<Rational32>> = args
         .iter()
         .map(|x| Some(Rational32::from_integer(**x)))
@@ -112,14 +117,14 @@ pub fn calculate(args: &Vec<&i32>, ops: &Vec<&Operation>, shape: &FormulaShape) 
 
     let answer = match shape {
         FormulaShape::A => {
-            let t = calculate_term(args[0], args[1], *ops[0]);
-            let t = calculate_term(t, args[2], *ops[1]);
-            calculate_term(t, args[3], *ops[2])
+            let t = calculate_term(args[0], args[1], ops[0]);
+            let t = calculate_term(t, args[2], ops[1]);
+            calculate_term(t, args[3], ops[2])
         }
         FormulaShape::B => {
-            let t1 = calculate_term(args[0], args[1], *ops[0]);
-            let t2 = calculate_term(args[2], args[3], *ops[1]);
-            calculate_term(t1, t2, *ops[2])
+            let t1 = calculate_term(args[0], args[1], ops[0]);
+            let t2 = calculate_term(args[2], args[3], ops[1]);
+            calculate_term(t1, t2, ops[2])
         }
     };
 
@@ -130,13 +135,13 @@ pub fn calculate(args: &Vec<&i32>, ops: &Vec<&Operation>, shape: &FormulaShape) 
     }
 }
 
-pub fn get_array(args: &Vec<&i32>, ops: &Vec<&Operation>, shape: &FormulaShape) -> js_sys::Array {
+pub fn get_array(args: &Vec<&i32>, ops: &Vec<Operation>, shape: &FormulaShape) -> js_sys::Array {
     let array = js_sys::Array::new_with_length(8);
     args.iter().enumerate().for_each(|(i, &arg)| {
         array.set(i as u32, JsValue::from(*arg));
     });
     ops.iter().enumerate().for_each(|(i, &op)| {
-        array.set(i as u32 + 4, JsValue::from(*op as i32));
+        array.set(i as u32 + 4, JsValue::from(op as i32));
     });
     array.set(7, JsValue::from(*shape as i32));
 
