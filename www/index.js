@@ -1,9 +1,10 @@
-import { enumerate, Operation, FormulaShape } from 'wasm-ten';
+import { enumerate as enumerateWasm, Operation, FormulaShape } from 'wasm-ten';
+import { enumerate as enumerateJs } from './solve';
 
 /** @type {HTMLInputElement} */
 const input = document.getElementById('input');
-/** @type {HTMLTextAreaElement} */
-const textarea = document.getElementById('textarea');
+/** @type {HTMLTextAreaElement[]} */
+const textareas = document.getElementsByTagName('textarea');
 
 const REPEAT = 50;
 
@@ -13,26 +14,37 @@ input.addEventListener('keyup', () => {
   }
 
   const problem = input.value.split('').map((x) => Number.parseInt(x));
-  const start = performance.now();
 
   /** @type {[number, number, number, number, Operation, Operation, Operation, FormulaShape][]} */
   let results;
-  for (let i = 0; i < REPEAT; ++i) {
-    results = enumerate(...problem);
-  }
 
-  const time = ((performance.now() - start) / REPEAT).toFixed(3);
+  [
+    { name: 'Wasm (Rust)', textarea: textareas[0], enumerate: enumerateWasm },
+    { name: 'Plain JS', textarea: textareas[1], enumerate: enumerateJs },
+  ].forEach(({ name, textarea, enumerate }) => {
+    const start = performance.now();
+    for (let i = 0; i < REPEAT; ++i) {
+      results = enumerate(...problem);
+    }
 
-  let formulae = results.map(([a, b, c, d, op1, op2, op3, shape]) =>
-    shape === FormulaShape.A
-      ? term(paren(term(paren(term(a, b, op1)), c, op2)), d, op3)
-      : term(paren(term(a, b, op1)), paren(term(c, d, op2)), op3)
-  );
-  formulae = formulae.filter((x, i) => formulae.indexOf(x) === i);
+    const time = ((performance.now() - start) / REPEAT).toFixed(3);
 
-  textarea.value =
-    `${problem.join(', ')}: Found ${formulae.length} solutions in ${time} ms (Average of ${REPEAT} repeats).\n\n` +
-    formulae.map((formula) => formula + ' = ' + eval(formula)).join('\n');
+    let formulae = results.map(([a, b, c, d, op1, op2, op3, shape]) =>
+      shape === FormulaShape.A
+        ? term(paren(term(paren(term(a, b, op1)), c, op2)), d, op3)
+        : term(paren(term(a, b, op1)), paren(term(c, d, op2)), op3)
+    );
+    formulae = formulae.filter((x, i) => formulae.indexOf(x) === i);
+
+    textarea.value =
+      `${name} [${problem.join(', ')}]\nFound ${
+        formulae.length
+      } solutions in ${time} ms (Average of ${REPEAT} repeats).\n\n` +
+      formulae
+        .map((formula) => formula + ' = ' + eval(formula))
+        .sort()
+        .join('\n');
+  });
 });
 input.dispatchEvent(new KeyboardEvent('keyup'));
 
