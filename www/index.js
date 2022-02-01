@@ -1,5 +1,8 @@
 import { enumerate as enumerateWasm, Operation, FormulaShape } from 'wasm-ten';
+import { memory } from 'wasm-ten/wasm_ten_bg.wasm';
 import { enumerate as enumerateJs } from './solve';
+
+const WASM_MEMORY_BUFFER_SIZE = 500 * 8;
 
 /** @type {HTMLInputElement} */
 const input = document.getElementById('input');
@@ -25,6 +28,14 @@ input.addEventListener('keyup', () => {
     const start = performance.now();
     for (let i = 0; i < REPEAT; ++i) {
       results = enumerate(...problem);
+    }
+
+    if (enumerate === enumerateWasm) {
+      const wasmMemory = new Uint32Array(memory.buffer).subarray(
+        results / 4, // why /4 ? I don't know.
+        results / 4 + WASM_MEMORY_BUFFER_SIZE + 1
+      );
+      results = Array.from({ length: wasmMemory[0] }, (_, i) => wasmMemory.subarray(i * 8 + 1, i * 8 + 9));
     }
 
     const time = ((performance.now() - start) / REPEAT).toFixed(3);
