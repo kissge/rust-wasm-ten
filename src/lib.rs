@@ -43,7 +43,7 @@ static mut WASM_MEMORY_BUFFER: [i32; WASM_MEMORY_BUFFER_SIZE] = [0; WASM_MEMORY_
 pub fn enumerate(a: i32, b: i32, c: i32, d: i32) -> *const i32 {
     // utils::set_panic_hook();
 
-    let operations = vec![
+    let operations = [
         Operation::Add,
         Operation::Sub,
         Operation::SubInversed,
@@ -51,6 +51,13 @@ pub fn enumerate(a: i32, b: i32, c: i32, d: i32) -> *const i32 {
         Operation::Div,
         Operation::DivInversed,
     ];
+    let operations: Vec<_> = operations
+        .iter()
+        .cycle()
+        .take(3 * operations.len())
+        .combinations_with_replacement(3)
+        .unique()
+        .collect();
 
     let mut count: usize = 0;
 
@@ -59,20 +66,14 @@ pub fn enumerate(a: i32, b: i32, c: i32, d: i32) -> *const i32 {
         .permutations(4)
         .unique()
         .for_each(|args| {
-            operations
-                .iter()
-                .cycle()
-                .take(3 * operations.len())
-                .combinations_with_replacement(3)
-                .unique()
-                .for_each(|ops| {
-                    [FormulaShape::A, FormulaShape::B].iter().for_each(|shape| {
-                        if calculate(&args, &ops, &shape) == Ok(10.0) {
-                            set_answer(&count, &args, &ops, shape);
-                            count += 1;
-                        }
-                    });
+            operations.iter().for_each(|ops| {
+                [FormulaShape::A, FormulaShape::B].iter().for_each(|shape| {
+                    if calculate(&args, &ops, &shape) == Ok(10.0) {
+                        set_answer(&count, &args, &ops, shape);
+                        count += 1;
+                    }
                 });
+            });
         });
 
     unsafe {

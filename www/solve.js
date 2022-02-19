@@ -1,17 +1,17 @@
 import { Operation, FormulaShape } from 'wasm-ten';
 
-const operations = [
-  Operation.Add,
-  Operation.Sub,
-  Operation.SubInversed,
-  Operation.Mul,
-  Operation.Div,
-  Operation.DivInversed,
-];
-
 export function enumerate(a, b, c, d) {
+  const operations = combinations([
+    Operation.Add,
+    Operation.Sub,
+    Operation.SubInversed,
+    Operation.Mul,
+    Operation.Div,
+    Operation.DivInversed,
+  ]);
+
   return permutations([a, b, c, d]).flatMap(([p, q, r, s]) =>
-    combinations(operations).flatMap(([op1, op2, op3]) =>
+    operations.flatMap(([op1, op2, op3]) =>
       [FormulaShape.A, FormulaShape.B].flatMap((shape) => {
         if (calculate(p, q, r, s, op1, op2, op3, shape).equals(10)) {
           return [[p, q, r, s, op1, op2, op3, shape]];
